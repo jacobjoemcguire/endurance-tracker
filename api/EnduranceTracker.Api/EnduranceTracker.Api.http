@@ -1,0 +1,6 @@
+@EnduranceTracker.Api_HostAddress = http://localhost:5208
+
+GET {{EnduranceTracker.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

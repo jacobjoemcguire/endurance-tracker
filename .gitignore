@@ -1,17 +1,23 @@
 # Environment & secrets
 .env
 .env.*
-!.env.example
+!**/.env.example
 appsettings.Development.json
 appsettings.Local.json
 
 # Terraform
 *.tfvars
+!*.tfvars.example
 *.tfvars.json
 terraform.tfstate
 terraform.tfstate.*
 .terraform/
 .terraform.lock.hcl
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
 
 # .NET
 bin/
@@ -28,6 +34,8 @@ out/
 .vs/
 .vscode/
 *.swp
+.idea/
+*.iml
 
 # OS
 .DS_Store

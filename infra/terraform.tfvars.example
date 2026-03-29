@@ -1,0 +1,7 @@
+# Copy this file to terraform.tfvars and fill in your values
+# terraform.tfvars is gitignored and should never be committed
+
+sql_admin_login    = "sqladmin"
+sql_admin_password = "CHANGE_ME_TO_A_STRONG_PASSWORD"
+entra_tenant_id    = "your-entra-tenant-id"
+entra_client_id    = "your-entra-app-client-id"
