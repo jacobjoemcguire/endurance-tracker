@@ -1,50 +1,8 @@
-# TrainingPulse — Design Document
+# EnduranceTracker — Design Document
 
-## Overview
+## Functional Requirements
 
-A personal training analysis and planning platform that syncs activity data from Strava, supports manual entry for non-tracked activities (strength work), provides configurable dashboards for analysing training patterns, and generates AI-assisted training plans built around target events.
-
----
-
-## 1. Architecture
-
-```
-┌─────────────────────────────────────────────────────────┐
-│                        Azure                             │
-│                                                          │
-│  ┌──────────────┐    ┌──────────────┐   ┌────────────┐  │
-│  │  Azure App   │    │  Azure App   │   │  Azure SQL │  │
-│  │  Service     │◄──►│  Service     │◄─►│  Database  │  │
-│  │  (Next.js)   │    │  (.NET API)  │   │            │  │
-│  └──────┬───────┘    └──────┬───────┘   └────────────┘  │
-│         │                   │                            │
-│         │            ┌──────┴───────┐                    │
-│         │            │   Strava     │                    │
-│  ┌──────┴───────┐    │   Webhooks   │                    │
-│  │  Entra ID    │    └──────────────┘                    │
-│  │  (Auth)      │                                        │
-│  └──────────────┘                                        │
-└─────────────────────────────────────────────────────────┘
-```
-
-### Tech Stack
-
-| Layer          | Technology              | Notes                              |
-|----------------|-------------------------|------------------------------------|
-| Frontend       | Next.js (React)         | Responsive web, mobile-friendly    |
-| Backend API    | .NET 8 (Web API)        | RESTful, Clean Architecture        |
-| Database       | Azure SQL               | Free tier (32GB)                   |
-| Auth           | Microsoft Entra ID      | OIDC/OAuth2, single user + future  |
-| Hosting        | Azure App Service       | Free/Basic tier for both apps      |
-| IaC            | Terraform               | All Azure resources managed        |
-| AI             | Hybrid — manual (Claude.ai) now, API integration later | Training plan generation |
-| Charts         | Tremor                  | Dashboard components + charts      |
-
----
-
-## 2. Functional Requirements
-
-### 2.1 Data Ingestion
+### Data Ingestion
 
 | Requirement | Detail |
 |-------------|--------|
@@ -53,7 +11,7 @@ A personal training analysis and planning platform that syncs activity data from
 | **Manual Entry** | Form-based entry for strength/gym sessions with fields: date, type, duration, exercises, sets, reps, weight, notes. |
 | **Activity Types** | Cycling, Running, Hiking, Strength (manual only). |
 
-### 2.2 Analysis & Dashboard
+### Analysis & Dashboard
 
 | Requirement | Detail |
 |-------------|--------|
@@ -63,7 +21,7 @@ A personal training analysis and planning platform that syncs activity data from
 | **Saved Views** | User can create, name, and save dashboard filter configurations. |
 | **Default View** | Recent 12 weeks, all activity types, summary cards + trend charts. |
 
-**Recommended Dashboard Components:**
+**Dashboard Components:**
 
 1. **Weekly Summary Cards** — hours, distance, elevation, activity count for current vs previous week
 2. **Training Load Chart** — rolling weekly volume over time (stacked by activity type)
@@ -74,7 +32,7 @@ A personal training analysis and planning platform that syncs activity data from
 7. **Event Countdown** — days to next event, with plan compliance %
 8. **Personal Records** — distance, elevation, longest ride/run, power bests (if available)
 
-### 2.3 Event Planning
+### Event Planning
 
 | Requirement | Detail |
 |-------------|--------|
@@ -83,19 +41,19 @@ A personal training analysis and planning platform that syncs activity data from
 | **Event Types** | Trail running events, endurance/ultra-endurance cycling. |
 | **Timeline View** | Visual timeline showing upcoming events and plan phases. |
 
-### 2.4 Training Plans
+### Training Plans
 
 | Requirement | Detail |
 |-------------|--------|
 | **Generation** | AI-generated plans working backwards from event date. |
 | **Input** | Event details + current fitness level (derived from history) + user preferences. |
 | **Historical Awareness** | AI considers what user enjoys (activity patterns, preferred ride types, volume tolerance) and adjusts. |
-| **Periodisation** | Base → Build → Peak → Taper phases, appropriate to discipline. |
+| **Periodisation** | Base, Build, Peak, Taper phases, appropriate to discipline. |
 | **Strength Integration** | Include strength/gym sessions in plan structure. |
 | **Compliance Tracking** | Planned vs actual — weekly adherence %, deviation alerts. |
 | **Adjustability** | User can modify/override individual sessions. AI can re-plan remaining weeks if user falls behind or ahead. |
 
-### 2.5 Auth & User
+### Auth & User
 
 | Requirement | Detail |
 |-------------|--------|
@@ -106,7 +64,7 @@ A personal training analysis and planning platform that syncs activity data from
 
 ---
 
-## 3. Non-Functional Requirements
+## Non-Functional Requirements
 
 | Category | Requirement |
 |----------|-------------|
@@ -120,7 +78,7 @@ A personal training analysis and planning platform that syncs activity data from
 
 ---
 
-## 4. Data Model (Core Entities)
+## Data Model
 
 ```
 User
@@ -147,7 +105,7 @@ User
 │   └── PlannedSession
 │       ├── Id, PlanId, Date, Type, Description
 │       ├── TargetDuration, TargetDistance, TargetIntensity
-│       └── CompletedActivityId (nullable FK → Activity)
+│       └── CompletedActivityId (nullable FK -> Activity)
 │
 └── SavedView
     ├── Id, UserId, Name, FilterJson, IsDefault
@@ -155,111 +113,79 @@ User
 
 ---
 
-## 5. API Design (Key Endpoints)
+## API Design
 
 ```
-# Auth
-GET  /api/auth/login          → Entra ID redirect
-GET  /api/auth/callback       → Token exchange
-POST /api/auth/logout
+# Health
+GET  /api/health              -> Anonymous health check
+
+# User
+GET  /api/me                  -> Current user info (from JWT)
 
 # Strava
-GET  /api/strava/connect      → Strava OAuth redirect
-GET  /api/strava/callback     → Token exchange + initial sync trigger
-POST /api/strava/webhook      → Webhook receiver (activity events)
+GET  /api/strava/connect      -> Strava OAuth redirect
+GET  /api/strava/callback     -> Token exchange + initial sync trigger
+POST /api/strava/webhook      -> Webhook receiver (activity events)
 
 # Activities
-GET  /api/activities           → List (filterable, paginated)
-GET  /api/activities/:id       → Detail
-POST /api/activities           → Manual entry (strength etc.)
-PUT  /api/activities/:id       → Update manual entry
-DELETE /api/activities/:id     → Delete manual entry
+GET  /api/activities           -> List (filterable, paginated)
+GET  /api/activities/:id       -> Detail
+POST /api/activities           -> Manual entry (strength etc.)
+PUT  /api/activities/:id       -> Update manual entry
+DELETE /api/activities/:id     -> Delete manual entry
 
 # Analytics
-GET  /api/analytics/summary    → Summary stats (date range, activity type filters)
-GET  /api/analytics/trends     → Time-series data for charts
-GET  /api/analytics/records    → Personal bests
+GET  /api/analytics/summary    -> Summary stats (date range, activity type filters)
+GET  /api/analytics/trends     -> Time-series data for charts
+GET  /api/analytics/records    -> Personal bests
 
 # Events
-GET  /api/events               → List upcoming events
-POST /api/events               → Create event
-PUT  /api/events/:id           → Update
-DELETE /api/events/:id         → Delete
+GET  /api/events               -> List upcoming events
+POST /api/events               -> Create event
+PUT  /api/events/:id           -> Update
+DELETE /api/events/:id         -> Delete
 
 # Training Plans
-POST /api/plans/generate       → AI generate plan for event
-GET  /api/plans/:id            → Plan detail with sessions
-PUT  /api/plans/:id/sessions/:sid → Mark session complete / modify
-POST /api/plans/:id/replan     → AI re-plan remaining weeks
+POST /api/plans/generate       -> AI generate plan for event
+GET  /api/plans/:id            -> Plan detail with sessions
+PUT  /api/plans/:id/sessions/:sid -> Mark session complete / modify
+POST /api/plans/:id/replan     -> AI re-plan remaining weeks
 
-# Dashboard
-GET  /api/views                → List saved views
-POST /api/views                → Save view config
-PUT  /api/views/:id            → Update
-DELETE /api/views/:id          → Delete
+# Dashboard Views
+GET  /api/views                -> List saved views
+POST /api/views                -> Save view config
+PUT  /api/views/:id            -> Update
+DELETE /api/views/:id          -> Delete
 ```
 
 ---
 
-## 6. Infrastructure (Terraform)
+## Infrastructure (Terraform)
 
 ```
 Azure Resources:
 ├── Resource Group
-├── App Service Plan (Free/Basic)
-│   ├── App Service — Next.js frontend
-│   └── App Service — .NET API
+├── App Service Plan (Free tier, Linux)
+│   ├── App Service — Next.js frontend (Node 20)
+│   └── App Service — .NET API (.NET 8)
 ├── Azure SQL Server
-│   └── Azure SQL Database (Free tier)
-├── Key Vault (secrets, Strava tokens)
+│   └── Azure SQL Database (Free tier, 32GB)
+├── Key Vault (RBAC auth, managed identity access)
+├── Log Analytics Workspace
 ├── Application Insights
-├── Entra ID App Registration
-│   ├── Frontend redirect URIs
-│   └── API permissions
-└── DNS / Custom Domain + Managed SSL Certificate (optional)
+└── Entra ID App Registration (documented separately)
 ```
 
 ---
 
-## 7. Project Structure
+## Implementation Phases
 
-```
-training-analysis-plan/
-├── infra/                    # Terraform
-│   ├── main.tf
-│   ├── variables.tf
-│   ├── outputs.tf
-│   └── modules/
-│       ├── app-service/
-│       ├── sql/
-│       ├── keyvault/
-│       └── monitoring/
-├── api/                      # .NET Web API
-│   ├── TrainingPulse.Api/
-│   ├── TrainingPulse.Core/       # Domain models, interfaces
-│   ├── TrainingPulse.Infrastructure/ # DB, Strava client, AI service
-│   └── TrainingPulse.Tests/
-├── web/                      # Next.js frontend
-│   ├── src/
-│   │   ├── app/              # App router pages
-│   │   ├── components/       # UI components
-│   │   ├── lib/              # API client, auth, utils
-│   │   └── hooks/            # Custom React hooks
-│   └── public/
-├── DESIGN.md
-└── README.md
-```
-
----
-
-## 8. Implementation Phases
-
-### Phase 1 — Foundation
-- Terraform infrastructure (App Services, SQL, Key Vault, App Insights)
+### Phase 1 — Foundation (Complete)
+- Terraform infrastructure modules
 - .NET API scaffolding with Entra ID auth
-- Next.js app with Entra ID login
-- Database schema + EF Core migrations
-- CI stub
+- Next.js app with Entra ID login (MSAL)
+- Domain entities and EF Core migrations
+- Health check endpoints
 
 ### Phase 2 — Strava Integration
 - Strava OAuth flow (connect/disconnect)
@@ -281,7 +207,7 @@ training-analysis-plan/
 ### Phase 5 — Event Planning & Training Plans
 - Event CRUD + timeline view
 - Plan data model: import/editor UI for manually created plans
-- Plan creation workflow: export fitness data → use Claude.ai to generate plan → import into app
+- Plan creation workflow: export fitness data, generate plan in Claude.ai, import into app
 - Planned vs actual compliance tracking
 - Re-planning: manually re-generate via Claude.ai and re-import
 
@@ -298,18 +224,21 @@ training-analysis-plan/
 
 ---
 
-## 9. Decisions Log
+## Decisions Log
 
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
 | AI Approach | Hybrid (Option C) — manual via Claude.ai first, API integration later | Get event planning + compliance tracking without API cost. Plug in automation when ready. |
 | Chart Library | Tremor | Built for Next.js dashboards, includes cards + charts + layout primitives. Fastest to ship. |
 | Custom Domain | Deferred | App Service provides *.azurewebsites.net with SSL. Add custom domain later if needed. |
+| Primary Keys | Guids | No sequential ID exposure, simplifies future data import/export. |
+| Auth Flow | MSAL redirect (not popup) | Works reliably across mobile browsers. |
+| Terraform State | Local for now | Avoids bootstrap chicken-and-egg. Migrate to Azure Storage backend when infra is stable. |
 
-## 10. Open Decisions
+## Open Decisions
 
 | Decision | Options | Notes |
 |----------|---------|-------|
 | AI Provider (Phase 5b) | Azure OpenAI vs Claude API | Decide when ready to automate. Abstract behind interface so it's swappable. |
-| Strava Rate Limits | 100 req/15min, 1000/day | Bulk import needs throttling. Webhook handles real-time. |
+| Strava Rate Limits | 100 req/15min, 1000/day | Bulk import needs throttling strategy. Webhook handles real-time. |
 | Plan Import Format | JSON vs structured form vs paste | How plans from Claude.ai get into the app. TBD in Phase 5. |
